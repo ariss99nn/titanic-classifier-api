@@ -1,39 +1,30 @@
-# app.py
 import os
 import joblib
 from fastapi import FastAPI
 from pydantic import BaseModel
-from typing import Optional
+import uvicorn
 
-import pandas as pd
-
-app = FastAPI(title="Titanic Classifier")
-
-# Cargar modelo (pipeline)
-MODEL_PATH = os.environ.get("MODEL_PATH", "model.joblib")
+# Cargar el modelo
+MODEL_PATH = "model.joblib"
 model = joblib.load(MODEL_PATH)
 
-# Definir el schema de entrada (ejemplo)
-class PredictRequest(BaseModel):
+app = FastAPI()
+
+class Passenger(BaseModel):
     pclass: int
     sex: str
-    age: Optional[float] = None
-    sibsp: Optional[int] = 0
-    parch: Optional[int] = 0
-    fare: Optional[float] = None
-    embarked: Optional[str] = None
+    age: float
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
 @app.post("/predict")
-def predict(payload: PredictRequest):
-    data = pd.DataFrame([payload.dict()])
-    probs = model.predict_proba(data)[0]
-    pred = int(model.predict(data)[0])
-    return {
-        "prediction": pred,
-        "probability": float(probs[pred]),
-        "probabilities": {"0": float(probs[0]), "1": float(probs[1])}
-    }
+def predict(passenger: Passenger):
+    data = [[passenger.pclass, passenger.sex, passenger.age]]
+    prediction = model.predict(data)
+    return {"prediction": int(prediction[0])}
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))  # 👈 Railway le pasa este valor
+    uvicorn.run(app, host="0.0.0.0", port=port)
